@@ -150,6 +150,7 @@ class HashController extends Controller
 
     /**
      * Vérifie si un mot de passe en clair correspond à un hash donné.
+     * Prend en charge nativement Bcrypt, Argon2i et Argon2id.
      */
     public function verify(Request $request): JsonResponse
     {
@@ -160,9 +161,14 @@ class HashController extends Controller
 
         $password = $validated['password'];
         $hash = trim($validated['hash']);
-
-        $matches = Hash::check($password, $hash);
+        $matches = false;
         $info = password_get_info($hash);
+
+        try {
+            $matches = password_verify($password, $hash);
+        } catch (\Throwable) {
+            $matches = false;
+        }
 
         return response()->json([
             'success' => true,
