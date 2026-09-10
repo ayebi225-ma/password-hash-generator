@@ -1,4 +1,4 @@
-@extends('layout.blank')
+@extends('layouts.app')
 
 @section('content')
 <!-- En-tête de page -->
