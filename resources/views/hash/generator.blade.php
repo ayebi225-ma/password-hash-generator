@@ -34,6 +34,37 @@
                         </div>
                     </div>
                     <small class="form-text text-muted">Longueur minimale : 4 caractères (max 1024).</small>
+
+                    <!-- Jauge de robustesse & Entropie -->
+                    <div class="mt-3 p-3 bg-light rounded border" id="strengthSection">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span class="small font-weight-bold text-muted" id="strengthLabel">
+                                <i class="fas fa-shield-alt mr-1"></i> Force : Non évaluée
+                            </span>
+                            <span class="badge badge-secondary px-2 py-1" id="entropyLabel">0 bits d'entropie</span>
+                        </div>
+                        <div class="progress" style="height: 8px; background-color: #e2e6ea; border-radius: 4px;">
+                            <div id="strengthBar" class="progress-bar" role="progressbar" 
+                                 style="width: 0%; transition: width 0.3s ease, background-color 0.3s ease;" 
+                                 aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+
+                        <!-- Indicateurs de critères -->
+                        <div class="d-flex flex-wrap mt-2" id="criteriaList" style="font-size: 11px;">
+                            <span class="badge badge-light text-muted border mr-1 mb-1 px-2 py-1" id="critLength">
+                                <i class="fas fa-times-circle text-secondary mr-1"></i> 8+ caractères
+                            </span>
+                            <span class="badge badge-light text-muted border mr-1 mb-1 px-2 py-1" id="critUpper">
+                                <i class="fas fa-times-circle text-secondary mr-1"></i> Majuscule (A-Z)
+                            </span>
+                            <span class="badge badge-light text-muted border mr-1 mb-1 px-2 py-1" id="critNumber">
+                                <i class="fas fa-times-circle text-secondary mr-1"></i> Chiffre (0-9)
+                            </span>
+                            <span class="badge badge-light text-muted border mr-1 mb-1 px-2 py-1" id="critSpecial">
+                                <i class="fas fa-times-circle text-secondary mr-1"></i> Symbole (!@#$)
+                            </span>
+                        </div>
+                    </div>
                     
                     <div id="bcryptWarning" class="alert alert-warning py-2 px-3 mt-2" style="display: none;">
                         <i class="fas fa-exclamation-triangle mr-1"></i>
@@ -212,7 +243,137 @@
         checkBcryptLimit();
     });
 
-    passwordInput?.addEventListener('input', checkBcryptLimit);
+    // Évaluation de la force et de l'entropie
+    function evaluatePasswordStrength(password) {
+        if (!password || password.length === 0) {
+            return {
+                percent: 0,
+                label: 'Non évaluée',
+                colorClass: '',
+                textClass: 'text-muted',
+                badgeClass: 'badge-secondary',
+                entropy: 0,
+                criteria: { length: false, upper: false, number: false, special: false }
+            };
+        }
+
+        const hasLower = /[a-z]/.test(password);
+        const hasUpper = /[A-Z]/.test(password);
+        const hasNumber = /[0-9]/.test(password);
+        const hasSpecial = /[^A-Za-z0-9]/.test(password);
+        const lengthOk = password.length >= 8;
+
+        // Calcul du réservoir de caractères (pool R)
+        let poolSize = 0;
+        if (hasLower) poolSize += 26;
+        if (hasUpper) poolSize += 26;
+        if (hasNumber) poolSize += 10;
+        if (hasSpecial) poolSize += 33;
+
+        // Entropie (bits) = L * log2(poolSize)
+        const entropy = poolSize > 0 ? Math.round(password.length * Math.log2(poolSize)) : 0;
+
+        let label = 'Très faible';
+        let colorClass = 'bg-danger';
+        let textClass = 'text-danger';
+        let badgeClass = 'badge-danger';
+        let percent = 20;
+
+        if (entropy < 28 || password.length < 6) {
+            label = 'Très faible';
+            colorClass = 'bg-danger';
+            textClass = 'text-danger';
+            badgeClass = 'badge-danger';
+            percent = 20;
+        } else if (entropy < 45 || password.length < 8) {
+            label = 'Faible';
+            colorClass = 'bg-warning';
+            textClass = 'text-warning';
+            badgeClass = 'badge-warning';
+            percent = 40;
+        } else if (entropy < 65 || !(hasUpper && hasNumber)) {
+            label = 'Moyen';
+            colorClass = 'bg-info';
+            textClass = 'text-info';
+            badgeClass = 'badge-info';
+            percent = 65;
+        } else if (entropy < 85 || !hasSpecial) {
+            label = 'Fort';
+            colorClass = 'bg-primary';
+            textClass = 'text-primary';
+            badgeClass = 'badge-primary';
+            percent = 85;
+        } else {
+            label = 'Très fort (Recommandé)';
+            colorClass = 'bg-success';
+            textClass = 'text-success';
+            badgeClass = 'badge-success';
+            percent = 100;
+        }
+
+        return {
+            percent,
+            label,
+            colorClass,
+            textClass,
+            badgeClass,
+            entropy,
+            criteria: {
+                length: lengthOk,
+                upper: hasUpper,
+                number: hasNumber,
+                special: hasSpecial
+            }
+        };
+    }
+
+    function updateStrengthMeter() {
+        const password = passwordInput.value;
+        const result = evaluatePasswordStrength(password);
+
+        const strengthBar = document.getElementById('strengthBar');
+        const strengthLabel = document.getElementById('strengthLabel');
+        const entropyLabel = document.getElementById('entropyLabel');
+
+        if (strengthBar) {
+            strengthBar.className = `progress-bar ${result.colorClass}`;
+            strengthBar.style.width = `${result.percent}%`;
+            strengthBar.setAttribute('aria-valuenow', result.percent);
+        }
+
+        if (strengthLabel) {
+            strengthLabel.className = `small font-weight-bold ${result.textClass}`;
+            strengthLabel.innerHTML = `<i class="fas fa-shield-alt mr-1"></i> Force : ${result.label}`;
+        }
+
+        if (entropyLabel) {
+            entropyLabel.className = `badge ${result.badgeClass} px-2 py-1`;
+            entropyLabel.textContent = `${result.entropy} bits d'entropie`;
+        }
+
+        // Mise à jour des badges critères
+        const updateBadge = (id, valid) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (valid) {
+                el.className = 'badge badge-success text-white border-success mr-1 mb-1 px-2 py-1';
+                el.querySelector('i').className = 'fas fa-check-circle mr-1';
+            } else {
+                el.className = 'badge badge-light text-muted border mr-1 mb-1 px-2 py-1';
+                el.querySelector('i').className = 'fas fa-times-circle text-secondary mr-1';
+            }
+        };
+
+        updateBadge('critLength', result.criteria.length);
+        updateBadge('critUpper', result.criteria.upper);
+        updateBadge('critNumber', result.criteria.number);
+        updateBadge('critSpecial', result.criteria.special);
+    }
+
+    passwordInput?.addEventListener('input', function() {
+        checkBcryptLimit();
+        updateStrengthMeter();
+    });
 
     // Génération du hash
     generateBtn?.addEventListener('click', async function() {
@@ -300,6 +461,7 @@
         copyBtn.disabled = true;
         bcryptWarning.style.display = 'none';
         clearAlert();
+        updateStrengthMeter();
     });
 
     // Touche Entrée

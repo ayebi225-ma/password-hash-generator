@@ -1,13 +1,17 @@
 <?php
 
-it('affiche la page du générateur sur / et /hash sans erreur', function () {
+it('affiche la page du générateur sur / et /hash sans erreur avec la jauge de robustesse', function () {
     $responseHome = $this->get('/');
     $responseHome->assertStatus(200);
     $responseHome->assertSee('Générateur de Hash Sécurisé');
+    $responseHome->assertSee('strengthSection');
+    $responseHome->assertSee('strengthBar');
+    $responseHome->assertSee('bits d\'entropie', false);
 
     $responseHash = $this->get('/hash');
     $responseHash->assertStatus(200);
     $responseHash->assertSee('Générateur de Hash Sécurisé');
+    $responseHash->assertSee('strengthSection');
 });
 
 it('génère un hash bcrypt valide commençant par $2y$', function () {
