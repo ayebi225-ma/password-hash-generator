@@ -23,7 +23,15 @@
 </ul>
 
 <!-- Zone d'alertes dynamiques globales -->
-<div id="alertContainer"></div>
+<div id="alertContainer">
+    <div id="alertBox" class="alert alert-dismissible fade show shadow-sm d-none" role="alert">
+        <i class="fas fa-exclamation-circle mr-1"></i>
+        <span id="alertMessage"></span>
+        <button type="button" class="close" id="alertCloseBtn" aria-label="Fermer">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
+</div>
 
 <div class="tab-content" id="coffreTabContent">
     <!-- ========================================== -->
@@ -58,7 +66,7 @@
                             <div class="mt-3 p-3 bg-light rounded border" id="strengthSection">
                                 <div class="d-flex justify-content-between align-items-center mb-1">
                                     <span class="small font-weight-bold text-muted" id="strengthLabel">
-                                        <i class="fas fa-shield-alt mr-1"></i> Force : Non évaluée
+                                        <i class="fas fa-shield-alt mr-1"></i> Force : <span id="strengthText">Non évaluée</span>
                                     </span>
                                     <span class="badge badge-secondary px-2 py-1" id="entropyLabel">0 bits d'entropie</span>
                                 </div>
@@ -106,7 +114,9 @@
                         </div>
                         
                         <button class="btn btn-primary btn-lg btn-block mt-4" id="generateHashBtn">
-                            <i class="fas fa-sync-alt mr-1"></i> Générer le hash
+                            <span class="loading-spinner d-none" id="generateSpinner"></span>
+                            <i class="fas fa-sync-alt mr-1" id="generateIcon"></i>
+                            <span id="generateBtnText">Générer le hash</span>
                         </button>
                     </div>
                 </div>
@@ -123,9 +133,7 @@
                             <label class="font-weight-bold">
                                 <i class="fas fa-code text-muted mr-1"></i> Résultat du hash :
                             </label>
-                            <div class="hash-result" id="hashResult">
-                                <span class="text-muted">Le hash sécurisé apparaîtra ici après génération</span>
-                            </div>
+                            <div class="hash-result text-muted" id="hashResult">Le hash sécurisé apparaîtra ici après génération</div>
                         </div>
                         
                         <div class="row">
@@ -146,7 +154,8 @@
                         <div class="row mt-4">
                             <div class="col-md-6 mb-2">
                                 <button class="btn btn-success btn-block" id="copyHashBtn" disabled>
-                                    <i class="fas fa-copy mr-1"></i> Copier
+                                    <i class="fas fa-copy mr-1" id="copyIcon"></i>
+                                    <span id="copyBtnText">Copier</span>
                                 </button>
                             </div>
                             <div class="col-md-6 mb-2">
@@ -213,7 +222,9 @@
                         </div>
 
                         <button class="btn btn-primary btn-lg btn-block mt-4 shadow-sm" id="verifySubmitBtn">
-                            <i class="fas fa-check-double mr-1"></i> Vérifier la correspondance
+                            <span class="loading-spinner d-none" id="verifySpinner"></span>
+                            <i class="fas fa-check-double mr-1" id="verifyIcon"></i>
+                            <span id="verifyBtnText">Vérifier la correspondance</span>
                         </button>
                         <button class="btn btn-outline-secondary btn-block mt-2" id="clearVerifyBtn">
                             <i class="fas fa-trash-alt mr-1"></i> Effacer les champs
@@ -242,8 +253,18 @@
 
                         <!-- État résultat de vérification -->
                         <div id="verifyOutcome" style="display: none;">
-                            <!-- Bannière de verdict -->
-                            <div id="verdictBanner"></div>
+                            <!-- Bannières de verdict -->
+                            <div id="verdictSuccess" class="alert alert-success text-center py-4 mb-3 shadow-sm border-0 d-none">
+                                <i class="fas fa-check-circle fa-3x text-success mb-2"></i>
+                                <h4 class="font-weight-bold text-success mb-1">Correspondance Confirmée !</h4>
+                                <p class="mb-0 text-dark small">Le mot de passe correspond exactement à cette empreinte de sécurité.</p>
+                            </div>
+
+                            <div id="verdictFailure" class="alert alert-danger text-center py-4 mb-3 shadow-sm border-0 d-none">
+                                <i class="fas fa-times-circle fa-3x text-danger mb-2"></i>
+                                <h4 class="font-weight-bold text-danger mb-1">Échec de Correspondance</h4>
+                                <p class="mb-0 text-dark small">Le mot de passe en clair ne correspond pas au hash fourni.</p>
+                            </div>
 
                             <!-- Carte d'analyse technique -->
                             <div class="card bg-light border-0 shadow-sm mt-3">
@@ -324,58 +345,70 @@
     const togglePasswordBtn = document.getElementById('togglePassword');
     const algorithmSelect = document.getElementById('algorithmSelect');
     const generateBtn = document.getElementById('generateHashBtn');
+    const generateSpinner = document.getElementById('generateSpinner');
+    const generateIcon = document.getElementById('generateIcon');
+    const generateBtnText = document.getElementById('generateBtnText');
     const hashResult = document.getElementById('hashResult');
     const hashLength = document.getElementById('hashLength');
     const hashDuration = document.getElementById('hashDuration');
     const copyBtn = document.getElementById('copyHashBtn');
+    const copyIcon = document.getElementById('copyIcon');
+    const copyBtnText = document.getElementById('copyBtnText');
     const clearBtn = document.getElementById('clearBtn');
     const algoBadge = document.getElementById('algoBadge');
     const algoDescription = document.getElementById('algoDescription');
     const bcryptWarning = document.getElementById('bcryptWarning');
-    const alertContainer = document.getElementById('alertContainer');
+    const alertBox = document.getElementById('alertBox');
+    const alertMessage = document.getElementById('alertMessage');
+    const alertCloseBtn = document.getElementById('alertCloseBtn');
     const testInVerifierWrapper = document.getElementById('testInVerifierWrapper');
     const testInVerifierBtn = document.getElementById('testInVerifierBtn');
 
     // ==========================================
     // ÉLÉMENTS DU VÉRIFICATEUR
     // ==========================================
-    const verifyPasswordInput = document.getElementById('verifyPasswordInput');
-    const toggleVerifyPassword = document.getElementById('toggleVerifyPassword');
-    const verifyHashInput = document.getElementById('verifyHashInput');
-    const pasteLastHashBtn = document.getElementById('pasteLastHashBtn');
-    const verifySubmitBtn = document.getElementById('verifySubmitBtn');
-    const clearVerifyBtn = document.getElementById('clearVerifyBtn');
-    const verifyPlaceholder = document.getElementById('verifyPlaceholder');
-    const verifyOutcome = document.getElementById('verifyOutcome');
-    const verdictBanner = document.getElementById('verdictBanner');
-    const detectedAlgoBadge = document.getElementById('detectedAlgoBadge');
-    const detectedCostRow = document.getElementById('detectedCostRow');
-    const detectedCostVal = document.getElementById('detectedCostVal');
-    const detectedMemoryRow = document.getElementById('detectedMemoryRow');
-    const detectedMemoryVal = document.getElementById('detectedMemoryVal');
-    const detectedIterRow = document.getElementById('detectedIterRow');
-    const detectedIterVal = document.getElementById('detectedIterVal');
-    const detectedThreadsRow = document.getElementById('detectedThreadsRow');
-    const detectedThreadsVal = document.getElementById('detectedThreadsVal');
+    const verifyPasswordInput   = document.getElementById('verifyPasswordInput');
+    const toggleVerifyPassword  = document.getElementById('toggleVerifyPassword');
+    const verifyHashInput       = document.getElementById('verifyHashInput');
+    const pasteLastHashBtn      = document.getElementById('pasteLastHashBtn');
+    const verifySubmitBtn       = document.getElementById('verifySubmitBtn');
+    const verifySpinner         = document.getElementById('verifySpinner');
+    const verifyIcon            = document.getElementById('verifyIcon');
+    const verifyBtnText         = document.getElementById('verifyBtnText');
+    const clearVerifyBtn        = document.getElementById('clearVerifyBtn');
+    const verifyPlaceholder     = document.getElementById('verifyPlaceholder');
+    const verifyOutcome         = document.getElementById('verifyOutcome');
+    const verdictSuccess        = document.getElementById('verdictSuccess');
+    const verdictFailure        = document.getElementById('verdictFailure');
+    const detectedAlgoBadge     = document.getElementById('detectedAlgoBadge');
+    const detectedCostRow       = document.getElementById('detectedCostRow');
+    const detectedCostVal       = document.getElementById('detectedCostVal');
+    const detectedMemoryRow     = document.getElementById('detectedMemoryRow');
+    const detectedMemoryVal     = document.getElementById('detectedMemoryVal');
+    const detectedIterRow       = document.getElementById('detectedIterRow');
+    const detectedIterVal       = document.getElementById('detectedIterVal');
+    const detectedThreadsRow    = document.getElementById('detectedThreadsRow');
+    const detectedThreadsVal    = document.getElementById('detectedThreadsVal');
 
     // Variable pour mémoriser le dernier hash généré
     let lastGeneratedHash = '';
     let lastGeneratedPassword = '';
 
     function showAlert(message, type = 'danger') {
-        alertContainer.innerHTML = `
-            <div class="alert alert-${type} alert-dismissible fade show shadow-sm" role="alert">
-                <i class="fas fa-exclamation-circle mr-1"></i> ${message}
-                <button type="button" class="close" data-dismiss="alert" aria-label="Fermer">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-        `;
+        if (alertBox && alertMessage) {
+            alertBox.className = `alert alert-${type} alert-dismissible fade show shadow-sm`;
+            alertMessage.textContent = message;
+        }
     }
 
     function clearAlert() {
-        alertContainer.innerHTML = '';
+        if (alertBox && alertMessage) {
+            alertBox.className = 'alert alert-dismissible fade show shadow-sm d-none';
+            alertMessage.textContent = '';
+        }
     }
+
+    alertCloseBtn?.addEventListener('click', clearAlert);
 
     function checkBcryptLimit() {
         const password = passwordInput.value;
@@ -516,6 +549,7 @@
 
         const strengthBar = document.getElementById('strengthBar');
         const strengthLabel = document.getElementById('strengthLabel');
+        const strengthText = document.getElementById('strengthText');
         const entropyLabel = document.getElementById('entropyLabel');
 
         if (strengthBar) {
@@ -524,9 +558,9 @@
             strengthBar.setAttribute('aria-valuenow', result.percent);
         }
 
-        if (strengthLabel) {
+        if (strengthLabel && strengthText) {
             strengthLabel.className = `small font-weight-bold ${result.textClass}`;
-            strengthLabel.innerHTML = `<i class="fas fa-shield-alt mr-1"></i> Force : ${result.label}`;
+            strengthText.textContent = result.label;
         }
 
         if (entropyLabel) {
@@ -538,12 +572,13 @@
         const updateBadge = (id, valid) => {
             const el = document.getElementById(id);
             if (!el) return;
+            const icon = el.querySelector('i');
             if (valid) {
                 el.className = 'badge badge-success text-white border-success mr-1 mb-1 px-2 py-1';
-                el.querySelector('i').className = 'fas fa-check-circle mr-1';
+                if (icon) icon.className = 'fas fa-check-circle mr-1';
             } else {
                 el.className = 'badge badge-light text-muted border mr-1 mb-1 px-2 py-1';
-                el.querySelector('i').className = 'fas fa-times-circle text-secondary mr-1';
+                if (icon) icon.className = 'fas fa-times-circle text-secondary mr-1';
             }
         };
 
@@ -578,8 +613,9 @@
             return;
         }
 
-        const originalHtml = generateBtn.innerHTML;
-        generateBtn.innerHTML = '<span class="loading-spinner"></span> Calcul du hash...';
+        generateSpinner.classList.remove('d-none');
+        generateIcon.classList.add('d-none');
+        generateBtnText.textContent = 'Calcul du hash...';
         generateBtn.disabled = true;
 
         try {
@@ -597,6 +633,7 @@
 
             if (response.ok && data.success) {
                 hashResult.textContent = data.data.hash;
+                hashResult.className = 'hash-result text-dark font-weight-bold';
                 hashLength.textContent = data.data.length + ' caractères';
                 hashDuration.textContent = data.data.duration_ms + ' ms';
                 copyBtn.disabled = false;
@@ -618,7 +655,9 @@
             console.error('Erreur:', error);
             showAlert('Impossible de contacter le serveur. Vérifiez votre connexion.');
         } finally {
-            generateBtn.innerHTML = originalHtml;
+            generateSpinner.classList.add('d-none');
+            generateIcon.classList.remove('d-none');
+            generateBtnText.textContent = 'Générer le hash';
             generateBtn.disabled = false;
         }
     });
@@ -626,17 +665,18 @@
     // Copier le hash
     copyBtn?.addEventListener('click', async function() {
         const hash = hashResult.textContent.trim();
-        if (!hash || hash.includes('Le hash sécurisé apparaîtra')) {
+        if (!hash || hash.includes('apparaîtra ici')) {
             showAlert('Aucun hash à copier.');
             return;
         }
 
         try {
             await navigator.clipboard.writeText(hash);
-            const originalHtml = copyBtn.innerHTML;
-            copyBtn.innerHTML = '<i class="fas fa-check mr-1"></i> Copié !';
+            copyIcon.className = 'fas fa-check mr-1';
+            copyBtnText.textContent = 'Copié !';
             setTimeout(() => {
-                copyBtn.innerHTML = originalHtml;
+                copyIcon.className = 'fas fa-copy mr-1';
+                copyBtnText.textContent = 'Copier';
             }, 2000);
         } catch (err) {
             showAlert('Échec de la copie dans le presse-papier.');
@@ -646,7 +686,8 @@
     // Effacer les champs du générateur
     clearBtn?.addEventListener('click', function() {
         passwordInput.value = '';
-        hashResult.innerHTML = '<span class="text-muted">Le hash sécurisé apparaîtra ici après génération</span>';
+        hashResult.textContent = 'Le hash sécurisé apparaîtra ici après génération';
+        hashResult.className = 'hash-result text-muted';
         hashLength.textContent = '0 caractères';
         hashDuration.textContent = '- ms';
         copyBtn.disabled = true;
@@ -707,8 +748,9 @@
             return;
         }
 
-        const originalHtml = verifySubmitBtn.innerHTML;
-        verifySubmitBtn.innerHTML = '<span class="loading-spinner"></span> Analyse et comparaison...';
+        verifySpinner.classList.remove('d-none');
+        verifyIcon.classList.add('d-none');
+        verifyBtnText.textContent = 'Analyse et comparaison...';
         verifySubmitBtn.disabled = true;
 
         try {
@@ -730,21 +772,11 @@
 
                 // 1. Afficher le verdict
                 if (data.match) {
-                    verdictBanner.innerHTML = `
-                        <div class="alert alert-success text-center py-4 mb-3 shadow-sm border-0">
-                            <i class="fas fa-check-circle fa-3x text-success mb-2"></i>
-                            <h4 class="font-weight-bold text-success mb-1">Correspondance Confirmée !</h4>
-                            <p class="mb-0 text-dark small">Le mot de passe correspond exactement à cette empreinte de sécurité.</p>
-                        </div>
-                    `;
+                    verdictSuccess.classList.remove('d-none');
+                    verdictFailure.classList.add('d-none');
                 } else {
-                    verdictBanner.innerHTML = `
-                        <div class="alert alert-danger text-center py-4 mb-3 shadow-sm border-0">
-                            <i class="fas fa-times-circle fa-3x text-danger mb-2"></i>
-                            <h4 class="font-weight-bold text-danger mb-1">Échec de Correspondance</h4>
-                            <p class="mb-0 text-dark small">Le mot de passe en clair ne correspond pas au hash fourni.</p>
-                        </div>
-                    `;
+                    verdictSuccess.classList.add('d-none');
+                    verdictFailure.classList.remove('d-none');
                 }
 
                 // 2. Remplir les métadonnées de l'algorithme
@@ -804,7 +836,9 @@
             console.error('Erreur:', error);
             showAlert('Impossible de contacter le serveur pour vérifier le hash.');
         } finally {
-            verifySubmitBtn.innerHTML = originalHtml;
+            verifySpinner.classList.add('d-none');
+            verifyIcon.classList.remove('d-none');
+            verifyBtnText.textContent = 'Vérifier la correspondance';
             verifySubmitBtn.disabled = false;
         }
     });
@@ -814,6 +848,8 @@
         verifyPasswordInput.value = '';
         verifyHashInput.value = '';
         verifyOutcome.style.display = 'none';
+        verdictSuccess.classList.add('d-none');
+        verdictFailure.classList.add('d-none');
         verifyPlaceholder.style.display = 'block';
         clearAlert();
     });
