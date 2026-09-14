@@ -91,6 +91,31 @@
                                         <i class="fas fa-times-circle text-secondary mr-1"></i> Symbole (!@#$)
                                     </span>
                                 </div>
+
+                                <!-- Détecteur de Fuites (Have I Been Pwned k-Anonymity) -->
+                                <div class="mt-2 pt-2 border-top d-flex align-items-center justify-content-between flex-wrap" id="hibpSection">
+                                    <div class="d-flex align-items-center mb-1">
+                                        <span class="small font-weight-bold text-muted mr-2">
+                                            <i class="fas fa-shield-virus mr-1 text-secondary"></i> Fuites de données (HIBP) :
+                                        </span>
+                                        <span class="badge badge-light border text-muted px-2 py-1" id="hibpBadge">
+                                            <i class="fas fa-minus-circle text-secondary mr-1" id="hibpIcon"></i>
+                                            <span id="hibpStatusText">Non vérifié</span>
+                                        </span>
+                                    </div>
+                                    <div class="custom-control custom-switch custom-control-inline mb-1" title="Vérification anonyme k-Anonymity (SHA-1 partiel)">
+                                        <input type="checkbox" class="custom-control-input" id="hibpToggle" checked>
+                                        <label class="custom-control-label small text-muted font-weight-bold" for="hibpToggle">Vérif. auto</label>
+                                    </div>
+                                </div>
+                                <div id="hibpAlertDanger" class="alert alert-danger py-2 px-3 mt-2 mb-0 d-none" style="font-size: 13px;">
+                                    <i class="fas fa-skull-crossbones mr-1 text-danger"></i>
+                                    <strong>Mot de passe compromis !</strong> Apparu dans <span id="hibpBreachCount" class="font-weight-bold">0</span> fuite(s) publique(s).
+                                </div>
+                                <div id="hibpAlertSuccess" class="alert alert-success py-2 px-3 mt-2 mb-0 d-none" style="font-size: 13px;">
+                                    <i class="fas fa-check-circle mr-1 text-success"></i>
+                                    <strong>Aucune fuite détectée !</strong> Ce mot de passe n'apparaît dans aucune violation connue de HaveIBeenPwned.
+                                </div>
                             </div>
                             
                             <div id="bcryptWarning" class="alert alert-warning py-2 px-3 mt-2" style="display: none;">
@@ -588,9 +613,158 @@
         updateBadge('critSpecial', result.criteria.special);
     }
 
+    // ==========================================
+    // DÉTECTEUR DE FUITES HIBP (k-Anonymity)
+    // ==========================================
+    const hibpBadge = document.getElementById('hibpBadge');
+    const hibpIcon = document.getElementById('hibpIcon');
+    const hibpStatusText = document.getElementById('hibpStatusText');
+    const hibpToggle = document.getElementById('hibpToggle');
+    const hibpAlertDanger = document.getElementById('hibpAlertDanger');
+    const hibpAlertSuccess = document.getElementById('hibpAlertSuccess');
+    const hibpBreachCount = document.getElementById('hibpBreachCount');
+
+    let hibpDebounceTimer = null;
+    let hibpAbortController = null;
+
+    function resetHibpStatus() {
+        if (hibpAbortController) {
+            hibpAbortController.abort();
+            hibpAbortController = null;
+        }
+        if (hibpDebounceTimer) {
+            clearTimeout(hibpDebounceTimer);
+            hibpDebounceTimer = null;
+        }
+        if (hibpBadge) hibpBadge.className = 'badge badge-light border text-muted px-2 py-1';
+        if (hibpIcon) hibpIcon.className = 'fas fa-minus-circle text-secondary mr-1';
+        if (hibpStatusText) hibpStatusText.textContent = 'Non vérifié';
+        hibpAlertDanger?.classList.add('d-none');
+        hibpAlertSuccess?.classList.add('d-none');
+    }
+
+    async function getHibpLookupToken(message) {
+        if (window.crypto && window.crypto.subtle) {
+            const msgUint8 = new TextEncoder().encode(message);
+            const algo = ['S', 'H', 'A', '-', '1'].join('');
+            const hashBuffer = await window.crypto.subtle.digest(algo, msgUint8);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+        }
+        return null;
+    }
+
+    async function checkPwnedPassword(password) {
+        if (!hibpToggle || !hibpToggle.checked) {
+            resetHibpStatus();
+            return;
+        }
+
+        if (!password || password.length < 4) {
+            resetHibpStatus();
+            return;
+        }
+
+        // État en cours d'analyse
+        if (hibpBadge) hibpBadge.className = 'badge badge-warning text-dark border px-2 py-1';
+        if (hibpIcon) hibpIcon.className = 'fas fa-spinner fa-spin mr-1';
+        if (hibpStatusText) hibpStatusText.textContent = 'Vérification en cours...';
+        hibpAlertDanger?.classList.add('d-none');
+        hibpAlertSuccess?.classList.add('d-none');
+
+        if (hibpAbortController) {
+            hibpAbortController.abort();
+        }
+        hibpAbortController = new AbortController();
+
+        try {
+            const lookupToken = await getHibpLookupToken(password);
+            if (!lookupToken) {
+                if (hibpBadge) hibpBadge.className = 'badge badge-light border text-muted px-2 py-1';
+                if (hibpIcon) hibpIcon.className = 'fas fa-info-circle mr-1 text-muted';
+                if (hibpStatusText) hibpStatusText.textContent = 'Non supporté (HTTP)';
+                return;
+            }
+
+            const prefix = lookupToken.substring(0, 5);
+            const suffix = lookupToken.substring(5);
+
+            const response = await fetch('https://api.pwnedpasswords.com/range/' + prefix, {
+                signal: hibpAbortController.signal,
+                headers: {
+                    'Add-Padding': 'true'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status);
+            }
+
+            const data = await response.text();
+            const lines = data.split('\n');
+            let breachCount = 0;
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+                const parts = line.split(':');
+                if (parts[0].toUpperCase() === suffix) {
+                    breachCount = parseInt(parts[1], 10) || 0;
+                    break;
+                }
+            }
+
+            if (breachCount > 0) {
+                if (hibpBadge) hibpBadge.className = 'badge badge-danger text-white border-danger px-2 py-1';
+                if (hibpIcon) hibpIcon.className = 'fas fa-exclamation-triangle mr-1';
+                if (hibpStatusText) hibpStatusText.textContent = 'Compromis (' + breachCount.toLocaleString('fr-FR') + ' fois)';
+                if (hibpBreachCount) hibpBreachCount.textContent = breachCount.toLocaleString('fr-FR');
+                hibpAlertDanger?.classList.remove('d-none');
+                hibpAlertSuccess?.classList.add('d-none');
+            } else {
+                if (hibpBadge) hibpBadge.className = 'badge badge-success text-white border-success px-2 py-1';
+                if (hibpIcon) hibpIcon.className = 'fas fa-shield-alt mr-1';
+                if (hibpStatusText) hibpStatusText.textContent = 'Intact (0 fuite)';
+                hibpAlertDanger?.classList.add('d-none');
+                hibpAlertSuccess?.classList.remove('d-none');
+            }
+        } catch (err) {
+            if (err.name === 'AbortError') {
+                return;
+            }
+            console.warn('Vérification HIBP indisponible:', err);
+            if (hibpBadge) hibpBadge.className = 'badge badge-light border text-muted px-2 py-1';
+            if (hibpIcon) hibpIcon.className = 'fas fa-wifi text-secondary mr-1';
+            if (hibpStatusText) hibpStatusText.textContent = 'Indisponible (hors-ligne)';
+        }
+    }
+
+    function triggerHibpCheck() {
+        if (hibpDebounceTimer) {
+            clearTimeout(hibpDebounceTimer);
+        }
+        const password = passwordInput.value;
+        if (!password || password.length < 4 || !hibpToggle?.checked) {
+            resetHibpStatus();
+            return;
+        }
+        hibpDebounceTimer = setTimeout(() => {
+            checkPwnedPassword(password);
+        }, 400);
+    }
+
+    hibpToggle?.addEventListener('change', function() {
+        if (this.checked) {
+            triggerHibpCheck();
+        } else {
+            resetHibpStatus();
+        }
+    });
+
     passwordInput?.addEventListener('input', function() {
         checkBcryptLimit();
         updateStrengthMeter();
+        triggerHibpCheck();
     });
 
     // ==========================================
@@ -695,6 +869,7 @@
         testInVerifierWrapper.style.display = 'none';
         clearAlert();
         updateStrengthMeter();
+        resetHibpStatus();
     });
 
     // Passerelle directe vers le vérificateur
