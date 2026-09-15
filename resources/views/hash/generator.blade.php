@@ -20,6 +20,12 @@
             <i class="fas fa-check-double mr-2"></i> Vérificateur de Hash
         </a>
     </li>
+    <li class="nav-item">
+        <a class="nav-link font-weight-bold shadow-sm py-2 px-4" id="tab-vault" data-toggle="pill" href="#pane-vault" role="tab" aria-controls="pane-vault" aria-selected="false">
+            <i class="fas fa-history mr-2"></i> Coffre de Session
+            <span class="badge badge-secondary ml-1" id="vaultCountBadge">0</span>
+        </a>
+    </li>
 </ul>
 
 <!-- Zone d'alertes dynamiques globales -->
@@ -467,6 +473,68 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- ONGLET 3 : COFFRE DE SESSION ÉPHÉMÈRE     -->
+    <!-- ========================================== -->
+    <div class="tab-pane fade" id="pane-vault" role="tabpanel" aria-labelledby="tab-vault">
+        <div class="card shadow mb-4">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center flex-wrap">
+                <div class="d-flex align-items-center my-1">
+                    <i class="fas fa-user-shield text-info mr-2 fa-lg"></i>
+                    <div>
+                        <span class="font-weight-bold">Historique de Session Éphémère (Session Vault)</span>
+                        <div class="small text-muted" style="font-size: 11px;">
+                            <i class="fas fa-lock mr-1"></i> Stocké en mémoire vive (sessionStorage) &bull; Purge automatique à la fermeture de l'onglet
+                        </div>
+                    </div>
+                </div>
+                <div class="my-1">
+                    <button class="btn btn-sm btn-outline-danger shadow-sm font-weight-bold" id="clearVaultBtn" disabled>
+                        <i class="fas fa-trash-alt mr-1"></i> Vider le coffre
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <!-- État vide -->
+                <div id="vaultEmptyState" class="text-center py-5 px-3">
+                    <div class="mb-3">
+                        <i class="fas fa-archive fa-3x text-gray-300"></i>
+                    </div>
+                    <h5 class="font-weight-bold text-gray-700">Le coffre de session est vide</h5>
+                    <p class="text-muted small mb-0 max-width-500 mx-auto">
+                        Chaque hash que vous générez sera conservé ici durant votre session active pour vous permettre de le copier rapidement ou de le tester dans le vérificateur.
+                    </p>
+                </div>
+
+                <!-- Tableau du coffre -->
+                <div id="vaultTableWrapper" class="table-responsive d-none">
+                    <table class="table table-hover table-striped mb-0" style="font-size: 13px;">
+                        <thead class="thead-light">
+                            <tr>
+                                <th style="width: 90px;">Heure</th>
+                                <th style="width: 120px;">Algorithme</th>
+                                <th>Mot de passe</th>
+                                <th>Empreinte (Hash)</th>
+                                <th style="width: 90px;">Temps</th>
+                                <th style="width: 150px;" class="text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="vaultTableBody">
+                            <!-- Lignes générées de façon dynamique et sécurisée par JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer bg-light py-2 text-muted small d-flex justify-content-between align-items-center flex-wrap">
+                <span>
+                    <i class="fas fa-info-circle mr-1 text-primary"></i> 
+                    Historique plafonné aux 10 dernières générations. Aucune donnée n'est envoyée ni stockée sur nos serveurs.
+                </span>
+                <span id="vaultCapacityText" class="font-weight-bold">0 / 10 entrées</span>
             </div>
         </div>
     </div>
@@ -1222,6 +1290,17 @@
                 lastGeneratedPassword = password;
                 testInVerifierWrapper.style.display = 'block';
                 pasteLastHashBtn.style.display = 'inline-block';
+
+                // Enregistrer dans le coffre de session
+                addVaultEntry({
+                    id: Date.now() + '-' + Math.random().toString(36).substring(2, 7),
+                    timestamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+                    algorithm: algorithm,
+                    plainText: password,
+                    hash: data.data.hash,
+                    duration_ms: data.data.duration_ms,
+                    length: data.data.length
+                });
             } else {
                 let errorMsg = data.message || 'Une erreur est survenue lors de la génération.';
                 if (data.errors) {
@@ -1441,5 +1520,246 @@
             verifySubmitBtn.click();
         }
     });
+
+    // ==========================================
+    // COFFRE DE SESSION ÉPHÉMÈRE (SESSION VAULT)
+    // ==========================================
+    const vaultCountBadge = document.getElementById('vaultCountBadge');
+    const vaultCapacityText = document.getElementById('vaultCapacityText');
+    const clearVaultBtn = document.getElementById('clearVaultBtn');
+    const vaultEmptyState = document.getElementById('vaultEmptyState');
+    const vaultTableWrapper = document.getElementById('vaultTableWrapper');
+    const vaultTableBody = document.getElementById('vaultTableBody');
+
+    const VAULT_STORAGE_KEY = 'coffrepass_vault_session';
+
+    function getVaultItems() {
+        try {
+            const raw = sessionStorage.getItem(VAULT_STORAGE_KEY);
+            return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+            console.warn('Erreur lecture vault:', e);
+            return [];
+        }
+    }
+
+    function saveVaultItems(items) {
+        try {
+            sessionStorage.setItem(VAULT_STORAGE_KEY, JSON.stringify(items));
+        } catch (e) {
+            console.warn('Erreur écriture vault:', e);
+        }
+    }
+
+    function addVaultEntry(entry) {
+        let items = getVaultItems();
+        if (items.length > 0 && items[0].hash === entry.hash && items[0].plainText === entry.plainText) {
+            return;
+        }
+        items.unshift(entry);
+        if (items.length > 10) {
+            items = items.slice(0, 10);
+        }
+        saveVaultItems(items);
+        renderVault();
+    }
+
+    function deleteVaultEntry(id) {
+        let items = getVaultItems();
+        items = items.filter(item => item.id !== id);
+        saveVaultItems(items);
+        renderVault();
+    }
+
+    function clearVault() {
+        try {
+            sessionStorage.removeItem(VAULT_STORAGE_KEY);
+        } catch (e) {}
+        renderVault();
+    }
+
+    function renderVault() {
+        const items = getVaultItems();
+        const count = items.length;
+
+        if (vaultCountBadge) {
+            vaultCountBadge.textContent = count;
+            vaultCountBadge.className = count > 0 ? 'badge badge-primary ml-1' : 'badge badge-secondary ml-1';
+        }
+
+        if (vaultCapacityText) {
+            vaultCapacityText.textContent = count + ' / 10 entrées';
+        }
+
+        if (!vaultTableBody || !vaultEmptyState || !vaultTableWrapper) {
+            return;
+        }
+
+        if (count === 0) {
+            vaultEmptyState.classList.remove('d-none');
+            vaultTableWrapper.classList.add('d-none');
+            if (clearVaultBtn) clearVaultBtn.disabled = true;
+            while (vaultTableBody.firstChild) {
+                vaultTableBody.removeChild(vaultTableBody.firstChild);
+            }
+            return;
+        }
+
+        vaultEmptyState.classList.add('d-none');
+        vaultTableWrapper.classList.remove('d-none');
+        if (clearVaultBtn) clearVaultBtn.disabled = false;
+
+        while (vaultTableBody.firstChild) {
+            vaultTableBody.removeChild(vaultTableBody.firstChild);
+        }
+
+        items.forEach(item => {
+            const tr = document.createElement('tr');
+
+            // 1. Heure
+            const tdTime = document.createElement('td');
+            tdTime.className = 'align-middle text-muted font-weight-bold';
+            tdTime.textContent = item.timestamp;
+            tr.appendChild(tdTime);
+
+            // 2. Algorithme
+            const tdAlgo = document.createElement('td');
+            tdAlgo.className = 'align-middle';
+            const algoBadge = document.createElement('span');
+            let badgeClass = 'badge badge-primary';
+            if (item.algorithm === 'argon2id') badgeClass = 'badge badge-success';
+            else if (item.algorithm === 'argon2i') badgeClass = 'badge badge-info';
+            algoBadge.className = badgeClass + ' px-2 py-1';
+            algoBadge.textContent = item.algorithm.toUpperCase();
+            tdAlgo.appendChild(algoBadge);
+            tr.appendChild(tdAlgo);
+
+            // 3. Mot de passe
+            const tdPass = document.createElement('td');
+            tdPass.className = 'align-middle';
+            const passWrapper = document.createElement('div');
+            passWrapper.className = 'd-flex align-items-center';
+
+            const passText = document.createElement('span');
+            passText.className = 'font-monospace mr-2 text-dark';
+            passText.textContent = '••••••••';
+            let isRevealed = false;
+
+            const eyeBtn = document.createElement('button');
+            eyeBtn.type = 'button';
+            eyeBtn.className = 'btn btn-sm btn-link text-muted p-0';
+            eyeBtn.title = 'Afficher/Masquer';
+            const eyeIcon = document.createElement('i');
+            eyeIcon.className = 'fas fa-eye';
+            eyeBtn.appendChild(eyeIcon);
+
+            eyeBtn.addEventListener('click', () => {
+                isRevealed = !isRevealed;
+                if (isRevealed) {
+                    passText.textContent = item.plainText;
+                    eyeIcon.className = 'fas fa-eye-slash text-primary';
+                } else {
+                    passText.textContent = '••••••••';
+                    eyeIcon.className = 'fas fa-eye text-muted';
+                }
+            });
+
+            passWrapper.appendChild(passText);
+            passWrapper.appendChild(eyeBtn);
+            tdPass.appendChild(passWrapper);
+            tr.appendChild(tdPass);
+
+            // 4. Hash (avec bouton copie rapide)
+            const tdHash = document.createElement('td');
+            tdHash.className = 'align-middle';
+            const hashWrapper = document.createElement('div');
+            hashWrapper.className = 'd-flex align-items-center justify-content-between';
+
+            const hashCode = document.createElement('code');
+            hashCode.className = 'text-primary font-weight-bold mr-2';
+            hashCode.style.fontSize = '12px';
+            hashCode.textContent = item.hash.length > 28 ? item.hash.substring(0, 28) + '...' : item.hash;
+            hashCode.title = item.hash;
+
+            const copyItemBtn = document.createElement('button');
+            copyItemBtn.type = 'button';
+            copyItemBtn.className = 'btn btn-sm btn-outline-secondary py-0 px-2';
+            copyItemBtn.title = 'Copier ce hash complet';
+            const copyIcon = document.createElement('i');
+            copyIcon.className = 'fas fa-copy';
+            copyItemBtn.appendChild(copyIcon);
+
+            copyItemBtn.addEventListener('click', async () => {
+                try {
+                    await navigator.clipboard.writeText(item.hash);
+                    copyIcon.className = 'fas fa-check text-success';
+                    setTimeout(() => {
+                        copyIcon.className = 'fas fa-copy';
+                    }, 1500);
+                } catch (e) {
+                    showAlert('Impossible de copier dans le presse-papier.');
+                }
+            });
+
+            hashWrapper.appendChild(hashCode);
+            hashWrapper.appendChild(copyItemBtn);
+            tdHash.appendChild(hashWrapper);
+            tr.appendChild(tdHash);
+
+            // 5. Temps CPU
+            const tdDuration = document.createElement('td');
+            tdDuration.className = 'align-middle text-muted font-weight-bold';
+            tdDuration.textContent = item.duration_ms + ' ms';
+            tr.appendChild(tdDuration);
+
+            // 6. Actions
+            const tdActions = document.createElement('td');
+            tdActions.className = 'align-middle text-right text-nowrap';
+
+            const testBtn = document.createElement('button');
+            testBtn.type = 'button';
+            testBtn.className = 'btn btn-sm btn-outline-primary mr-1';
+            testBtn.title = 'Tester dans le vérificateur de hash';
+            const testIcon = document.createElement('i');
+            testIcon.className = 'fas fa-check-double mr-1';
+            testBtn.appendChild(testIcon);
+            const testBtnSpan = document.createElement('span');
+            testBtnSpan.textContent = 'Tester';
+            testBtn.appendChild(testBtnSpan);
+
+            testBtn.addEventListener('click', () => {
+                verifyPasswordInput.value = item.plainText;
+                verifyHashInput.value = item.hash;
+                $('#tab-verifier').tab('show');
+                verifySubmitBtn.click();
+            });
+
+            const delBtn = document.createElement('button');
+            delBtn.type = 'button';
+            delBtn.className = 'btn btn-sm btn-outline-danger';
+            delBtn.title = 'Supprimer cette entrée';
+            const delIcon = document.createElement('i');
+            delIcon.className = 'fas fa-times';
+            delBtn.appendChild(delIcon);
+
+            delBtn.addEventListener('click', () => {
+                deleteVaultEntry(item.id);
+            });
+
+            tdActions.appendChild(testBtn);
+            tdActions.appendChild(delBtn);
+            tr.appendChild(tdActions);
+
+            vaultTableBody.appendChild(tr);
+        });
+    }
+
+    clearVaultBtn?.addEventListener('click', function() {
+        if (confirm('Voulez-vous vraiment vider tout le coffre de session ?')) {
+            clearVault();
+        }
+    });
+
+    renderVault();
 </script>
 @endpush
