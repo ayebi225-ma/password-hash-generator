@@ -935,9 +935,9 @@
             name: '⚡ Cluster Hacker standard (8x NVIDIA RTX 4090)',
             desc: 'Puissance de référence : 8x RTX 4090 dédiée au cassage Hashcat haute intensité (~3 500 W).',
             speeds: {
-                legacy: 80000000000,    // 80 GH/s
-                bcrypt: 250000,         // 250 kH/s
-                argon: 4000             // 4 kH/s
+                legacy: 80000000000,  
+                bcrypt: 250000,      
+                argon: 4000           
             },
             speedLabels: {
                 legacy: '80 GH/s',
@@ -950,9 +950,9 @@
             name: '🖥️ PC Gamer / Station (1x NVIDIA RTX 3060)',
             desc: 'Configuration grand public : 1x RTX 3060 (12 Go VRAM) fonctionnant en tâche de fond (~170 W).',
             speeds: {
-                legacy: 5000000000,     // 5 GH/s
-                bcrypt: 15000,          // 15 kH/s
-                argon: 300              // 300 H/s
+                legacy: 5000000000,  
+                bcrypt: 15000,        
+                argon: 300            
             },
             speedLabels: {
                 legacy: '5 GH/s',
