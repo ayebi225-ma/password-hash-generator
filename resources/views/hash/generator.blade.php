@@ -925,10 +925,10 @@
     const bfSpeedBcrypt = document.getElementById('bfSpeedBcrypt');
     const bfCostBcrypt = document.getElementById('bfCostBcrypt');
 
-    const bfTimeArgon = document.getElementById('bfTimeArgon');
+    const bfTimeArgon = document.getElementById('bfTimeArgon'); 
     const bfBadgeArgon = document.getElementById('bfBadgeArgon');
     const bfSpeedArgon = document.getElementById('bfSpeedArgon');
-    const bfCostArgon = document.getElementById('bfCostArgon');
+    const bfCostArgon = document.getElementById('bfCostArgon'); 
 
     const HARDWARE_PROFILES = {
         cluster: {
@@ -965,9 +965,9 @@
             name: '🏢 Supercalculateur étatique / Botnet (1 000 GPUs)',
             desc: 'Infrastructure étatique massive ou botnet mondial de plusieurs milliers de cartes graphiques.',
             speeds: {
-                legacy: 10000000000000, // 10 TH/s
-                bcrypt: 30000000,       // 30 MH/s
-                argon: 500000           // 500 kH/s
+                legacy: 10000000000000,
+                bcrypt: 30000000,    
+                argon: 500000          
             },
             speedLabels: {
                 legacy: '10 TH/s',
