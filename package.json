@@ -1,12 +1,57 @@
 {
-    "$schema": "https://www.schemastore.org/package.json",
-    "private": true,
+    "name": "coffrepass",
+    "version": "1.0.0",
+    "description": "Professional cryptographic password hashing, verification, inspection, strength analysis and CSPRNG generation CLI & library for Node.js, compatible with PHP >= 8.2 & Python.",
     "type": "module",
+    "main": "./src/core/index.js",
+    "bin": {
+        "coffrepass": "bin/coffrepass.js"
+    },
+    "files": [
+        "bin",
+        "src",
+        "README.md",
+        "LICENSE"
+    ],
     "scripts": {
+        "coffrepass": "node ./bin/coffrepass.js",
+        "test": "vitest run",
+        "test:watch": "vitest",
         "build": "vite build",
         "dev": "vite"
     },
+    "keywords": [
+        "password",
+        "hash",
+        "argon2",
+        "argon2id",
+        "bcrypt",
+        "scrypt",
+        "security",
+        "cli",
+        "diceware",
+        "crypto",
+        "php",
+        "python"
+    ],
+    "author": "ayebi",
+    "license": "MIT",
+    "engines": {
+        "node": ">=18.0.0"
+    },
     "devDependencies": {
-        "laravel-vite-plugin": "^1.2.0"
+        "@tailwindcss/vite": "^4.3.3",
+        "axios": "^1.20.0",
+        "laravel-vite-plugin": "^1.2.0",
+        "tailwindcss": "^4.3.3",
+        "vitest": "^5.0.1"
+    },
+    "dependencies": {
+        "@inquirer/prompts": "^8.7.2",
+        "@node-rs/argon2": "^2.2.1",
+        "@node-rs/bcrypt": "^1.10.9",
+        "cli-table3": "^0.6.5",
+        "commander": "^15.0.0",
+        "picocolors": "^1.1.1"
     }
 }
