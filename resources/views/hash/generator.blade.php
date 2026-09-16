@@ -54,9 +54,14 @@
                     </div>
                     <div class="card-body">
                         <div class="form-group">
-                            <label for="passwordInput" class="font-weight-bold">
-                                <i class="fas fa-key text-muted mr-1"></i> Entrez votre mot de passe :
-                            </label>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label for="passwordInput" class="font-weight-bold mb-0">
+                                    <i class="fas fa-key text-muted mr-1"></i> Entrez votre mot de passe :
+                                </label>
+                                <button type="button" class="btn btn-sm btn-outline-primary font-weight-bold shadow-sm" data-toggle="modal" data-target="#passGenModal" id="openPassGenBtn">
+                                    <i class="fas fa-dice mr-1"></i> Générateur CSPRNG
+                                </button>
+                            </div>
                             <div class="input-group">
                                 <input type="password" class="form-control form-control-lg" id="passwordInput" 
                                        placeholder="ex: MonSuperMotDePasse123!" autocomplete="off">
@@ -567,6 +572,160 @@
                     <i class="fas fa-ban text-danger mr-1"></i> 
                     <strong>Algorithmes obsolètes proscrits :</strong> MD5, SHA-1, SHA-256 et SHA-512 ne sont pas conçus pour les mots de passe (trop rapides face aux attaques par dictionnaire et tables arc-en-ciel). CoffrePass n'implémente que des fonctions de dérivation de clés sécurisées (KDF).
                 </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MODALE : GÉNÉRATEUR DE MOTS DE PASSE CSPRNG -->
+<!-- ========================================== -->
+<div class="modal fade" id="passGenModal" tabindex="-1" role="dialog" aria-labelledby="passGenModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-dice text-primary mr-2 fa-lg"></i>
+                    <h5 class="modal-title font-weight-bold" id="passGenModalLabel">Générateur Cryptographique de Secrets</h5>
+                </div>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Fermer">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- Zone d'aperçu du secret généré -->
+                <div class="p-3 bg-light rounded border mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="small font-weight-bold text-muted text-uppercase">
+                            <i class="fas fa-key mr-1 text-primary"></i> Secret généré (CSPRNG) :
+                        </span>
+                        <span class="badge badge-success px-2 py-1" id="genEntropyBadge">~ 95 bits d'entropie</span>
+                    </div>
+                    <div class="d-flex align-items-center justify-content-between flex-wrap">
+                        <div class="font-monospace text-dark font-weight-bold p-2 bg-white rounded border flex-grow-1 mr-2 text-break" id="generatedPassDisplay" style="font-size: 16px; min-height: 44px; word-break: break-all;">
+                            <!-- Mot de passe généré -->
+                        </div>
+                        <div class="btn-group mt-2 mt-sm-0">
+                            <button type="button" class="btn btn-outline-secondary" id="regenPassBtn" title="Générer un autre secret">
+                                <i class="fas fa-sync-alt" id="regenIcon"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" id="copyGenPassBtn" title="Copier ce mot de passe">
+                                <i class="fas fa-copy mr-1" id="copyGenIcon"></i>
+                                <span id="copyGenText">Copier</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Onglets de mode de génération -->
+                <ul class="nav nav-pills nav-fill mb-3" id="genModeTabs" role="tablist">
+                    <li class="nav-item">
+                        <a class="nav-link active font-weight-bold" id="tab-mode-complex" data-toggle="pill" href="#mode-complex" role="tab">
+                            <i class="fas fa-random mr-1"></i> Aléatoire Complexe
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link font-weight-bold" id="tab-mode-diceware" data-toggle="pill" href="#mode-diceware" role="tab">
+                            <i class="fas fa-book-reader mr-1"></i> Passphrase Diceware (XKCD)
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="genModeTabContent">
+                    <!-- MODE 1 : Aléatoire Complexe -->
+                    <div class="tab-pane fade show active" id="mode-complex" role="tabpanel">
+                        <div class="form-group mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label for="complexLengthSlider" class="font-weight-bold mb-0">
+                                    Longueur : <span id="complexLengthValue" class="text-primary font-weight-bold">16</span> caractères
+                                </label>
+                                <span class="small text-muted">OWASP min : 14</span>
+                            </div>
+                            <input type="range" class="custom-range" id="complexLengthSlider" min="8" max="64" value="16">
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-2">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" id="chkUpper" checked>
+                                    <label class="custom-control-label" for="chkUpper">Majuscules (A-Z)</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" id="chkLower" checked>
+                                    <label class="custom-control-label" for="chkLower">Minuscules (a-z)</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" id="chkNumbers" checked>
+                                    <label class="custom-control-label" for="chkNumbers">Chiffres (0-9)</label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" id="chkSymbols" checked>
+                                    <label class="custom-control-label" for="chkSymbols">Symboles (!@#$%^&*...)</label>
+                                </div>
+                            </div>
+                            <div class="col-12 mt-1">
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" id="chkNoAmbiguous" checked>
+                                    <label class="custom-control-label text-muted small" for="chkNoAmbiguous">
+                                        Exclure les caractères ambigus (<code class="text-dark">0, O, o, l, 1, I, |</code>)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MODE 2 : Passphrase Diceware -->
+                    <div class="tab-pane fade" id="mode-diceware" role="tabpanel">
+                        <div class="form-group mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label for="dicewareWordsSlider" class="font-weight-bold mb-0">
+                                    Nombre de mots : <span id="dicewareWordsValue" class="text-primary font-weight-bold">4</span> mots
+                                </label>
+                                <span class="small text-muted">4 mots ~ 52 bits &bull; 5 mots ~ 65 bits</span>
+                            </div>
+                            <input type="range" class="custom-range" id="dicewareWordsSlider" min="3" max="6" value="4">
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="dicewareSeparatorSelect" class="font-weight-bold small text-muted">Séparateur :</label>
+                                <select class="form-control form-control-sm" id="dicewareSeparatorSelect">
+                                    <option value="-" selected>Tiret ( - ) [Recommandé]</option>
+                                    <option value=".">Point ( . )</option>
+                                    <option value="_">Tiret bas ( _ )</option>
+                                    <option value=" ">Espace ( )</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 d-flex flex-column justify-content-center">
+                                <div class="custom-control custom-checkbox mb-2">
+                                    <input type="checkbox" class="custom-control-input" id="chkDicewareCapitalize" checked>
+                                    <label class="custom-control-label small" for="chkDicewareCapitalize">Capitaliser chaque mot</label>
+                                </div>
+                                <div class="custom-control custom-checkbox">
+                                    <input type="checkbox" class="custom-control-input" id="chkDicewareNumber" checked>
+                                    <label class="custom-control-label small" for="chkDicewareNumber">Ajouter un chiffre aléatoire</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light d-flex justify-content-between">
+                <small class="text-muted">
+                    <i class="fas fa-shield-alt mr-1 text-success"></i> Généré via <code>crypto.getRandomValues()</code>
+                </small>
+                <div>
+                    <button type="button" class="btn btn-secondary mr-2" data-dismiss="modal">Fermer</button>
+                    <button type="button" class="btn btn-success font-weight-bold" id="applyGeneratedPassBtn">
+                        <i class="fas fa-check mr-1"></i> Utiliser ce mot de passe
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -1761,5 +1920,229 @@
     });
 
     renderVault();
+
+    // ==========================================
+    // GÉNÉRATEUR CSPRNG & PASSPHRASE DICEWARE
+    // ==========================================
+    const generatedPassDisplay = document.getElementById('generatedPassDisplay');
+    const genEntropyBadge = document.getElementById('genEntropyBadge');
+    const regenPassBtn = document.getElementById('regenPassBtn');
+    const regenIcon = document.getElementById('regenIcon');
+    const copyGenPassBtn = document.getElementById('copyGenPassBtn');
+    const copyGenIcon = document.getElementById('copyGenIcon');
+    const copyGenText = document.getElementById('copyGenText');
+    const applyGeneratedPassBtn = document.getElementById('applyGeneratedPassBtn');
+
+    const complexLengthSlider = document.getElementById('complexLengthSlider');
+    const complexLengthValue = document.getElementById('complexLengthValue');
+    const chkUpper = document.getElementById('chkUpper');
+    const chkLower = document.getElementById('chkLower');
+    const chkNumbers = document.getElementById('chkNumbers');
+    const chkSymbols = document.getElementById('chkSymbols');
+    const chkNoAmbiguous = document.getElementById('chkNoAmbiguous');
+
+    const dicewareWordsSlider = document.getElementById('dicewareWordsSlider');
+    const dicewareWordsValue = document.getElementById('dicewareWordsValue');
+    const dicewareSeparatorSelect = document.getElementById('dicewareSeparatorSelect');
+    const chkDicewareCapitalize = document.getElementById('chkDicewareCapitalize');
+    const chkDicewareNumber = document.getElementById('chkDicewareNumber');
+
+    let currentGenMode = 'complex';
+    let currentGeneratedSecret = '';
+
+    const FRENCH_WORDS = [
+        'abricot', 'agence', 'aimant', 'albatros', 'allumette', 'amande', 'ambre', 'ancrage',
+        'anneau', 'arcade', 'ardoise', 'armure', 'astronome', 'aurore', 'bambou', 'banquise',
+        'barrage', 'bastion', 'boussole', 'bravoure', 'brouillard', 'calypso', 'cascade', 'casque',
+        'cavalier', 'celeste', 'chameau', 'chanson', 'chateau', 'chimere', 'citadelle', 'clairon',
+        'colibri', 'comete', 'compas', 'corail', 'couronne', 'cristal', 'dauphin', 'diamant',
+        'diapason', 'diligence', 'dynastie', 'eclair', 'eclipse', 'ecureuil', 'emeraude', 'enigme',
+        'escalier', 'faisceau', 'faucon', 'flamme', 'fleuve', 'foudre', 'galaxie', 'galet',
+        'glacier', 'gouffre', 'guitare', 'harmonie', 'horizon', 'iceberg', 'iguane', 'iris',
+        'jaspe', 'jonquille', 'labyrinthe', 'lagune', 'lanterne', 'legende', 'lumiere', 'magnolia',
+        'marmotte', 'meteore', 'mosaique', 'mystere', 'nacelle', 'navire', 'nebuleuse', 'oasis',
+        'odyssee', 'ombrelle', 'opale', 'orage', 'orchidee', 'paladin', 'panthere', 'pendule',
+        'pepite', 'phenix', 'pigeon', 'pirate', 'planete', 'prisme', 'pyramide', 'quartz',
+        'refuge', 'renard', 'rivage', 'rubis', 'sagaie', 'saphir', 'sentinelle', 'serenade',
+        'silex', 'sirene', 'soleil', 'sommet', 'sorcier', 'sphere', 'symbole', 'talion',
+        'tempete', 'timonier', 'torrent', 'toundra', 'triangle', 'vaisseau', 'vallee', 'vortex', 'zephyr'
+    ];
+
+    function getCryptoRandomInt(max) {
+        if (max <= 0) return 0;
+        const array = new Uint32Array(1);
+        window.crypto.getRandomValues(array);
+        return array[0] % max;
+    }
+
+    function generateComplexSecret() {
+        const length = parseInt(complexLengthSlider?.value || '16', 10);
+        let upperChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        let lowerChars = 'abcdefghijklmnopqrstuvwxyz';
+        let numberChars = '0123456789';
+        let symbolChars = '!@#$%^&*()_+-=[]{}|;:,.<>?';
+
+        if (chkNoAmbiguous?.checked) {
+            upperChars = upperChars.replace(/[IO]/g, '');
+            lowerChars = lowerChars.replace(/[lo]/g, '');
+            numberChars = numberChars.replace(/[01]/g, '');
+            symbolChars = symbolChars.replace(/[|;:,.]/g, '');
+        }
+
+        let pool = '';
+        const guaranteed = [];
+
+        if (chkUpper?.checked && upperChars.length) {
+            pool += upperChars;
+            guaranteed.push(upperChars[getCryptoRandomInt(upperChars.length)]);
+        }
+        if (chkLower?.checked && lowerChars.length) {
+            pool += lowerChars;
+            guaranteed.push(lowerChars[getCryptoRandomInt(lowerChars.length)]);
+        }
+        if (chkNumbers?.checked && numberChars.length) {
+            pool += numberChars;
+            guaranteed.push(numberChars[getCryptoRandomInt(numberChars.length)]);
+        }
+        if (chkSymbols?.checked && symbolChars.length) {
+            pool += symbolChars;
+            guaranteed.push(symbolChars[getCryptoRandomInt(symbolChars.length)]);
+        }
+
+        if (!pool.length) {
+            pool = 'abcdefghjkmnpqrstuvwxyz23456789';
+            guaranteed.push(pool[getCryptoRandomInt(pool.length)]);
+        }
+
+        const chars = [...guaranteed];
+        while (chars.length < length) {
+            chars.push(pool[getCryptoRandomInt(pool.length)]);
+        }
+
+        for (let i = chars.length - 1; i > 0; i--) {
+            const j = getCryptoRandomInt(i + 1);
+            const temp = chars[i];
+            chars[i] = chars[j];
+            chars[j] = temp;
+        }
+
+        const entropy = length * Math.log2(pool.length);
+        return {
+            secret: chars.join(''),
+            entropy: Math.round(entropy)
+        };
+    }
+
+    function generateDicewareSecret() {
+        const wordCount = parseInt(dicewareWordsSlider?.value || '4', 10);
+        const separator = dicewareSeparatorSelect?.value || '-';
+        const capitalize = chkDicewareCapitalize?.checked ?? true;
+        const appendNumber = chkDicewareNumber?.checked ?? true;
+
+        const words = [];
+        for (let i = 0; i < wordCount; i++) {
+            let w = FRENCH_WORDS[getCryptoRandomInt(FRENCH_WORDS.length)];
+            if (capitalize) {
+                w = w.charAt(0).toUpperCase() + w.slice(1);
+            }
+            words.push(w);
+        }
+
+        let result = words.join(separator);
+        let extraEntropy = 0;
+        if (appendNumber) {
+            const randNum = getCryptoRandomInt(90) + 10;
+            result += separator + randNum;
+            extraEntropy = Math.log2(90);
+        }
+
+        const entropy = (wordCount * Math.log2(FRENCH_WORDS.length)) + extraEntropy;
+        return {
+            secret: result,
+            entropy: Math.round(entropy)
+        };
+    }
+
+    function updateGeneratedSecret() {
+        let result = null;
+        if (currentGenMode === 'diceware') {
+            result = generateDicewareSecret();
+        } else {
+            result = generateComplexSecret();
+        }
+
+        currentGeneratedSecret = result.secret;
+        if (generatedPassDisplay) {
+            generatedPassDisplay.textContent = currentGeneratedSecret;
+        }
+
+        if (genEntropyBadge) {
+            genEntropyBadge.textContent = '~ ' + result.entropy + " bits d'entropie";
+            if (result.entropy < 50) {
+                genEntropyBadge.className = 'badge badge-warning text-dark px-2 py-1';
+            } else if (result.entropy < 80) {
+                genEntropyBadge.className = 'badge badge-primary px-2 py-1';
+            } else {
+                genEntropyBadge.className = 'badge badge-success px-2 py-1';
+            }
+        }
+    }
+
+    complexLengthSlider?.addEventListener('input', function() {
+        if (complexLengthValue) complexLengthValue.textContent = this.value;
+        updateGeneratedSecret();
+    });
+
+    dicewareWordsSlider?.addEventListener('input', function() {
+        if (dicewareWordsValue) dicewareWordsValue.textContent = this.value;
+        updateGeneratedSecret();
+    });
+
+    [chkUpper, chkLower, chkNumbers, chkSymbols, chkNoAmbiguous, dicewareSeparatorSelect, chkDicewareCapitalize, chkDicewareNumber].forEach(el => {
+        el?.addEventListener('change', updateGeneratedSecret);
+    });
+
+    $('#tab-mode-complex')?.on('shown.bs.tab', function() {
+        currentGenMode = 'complex';
+        updateGeneratedSecret();
+    });
+    $('#tab-mode-diceware')?.on('shown.bs.tab', function() {
+        currentGenMode = 'diceware';
+        updateGeneratedSecret();
+    });
+
+    regenPassBtn?.addEventListener('click', function() {
+        if (regenIcon) {
+            regenIcon.classList.add('fa-spin');
+            setTimeout(() => regenIcon.classList.remove('fa-spin'), 300);
+        }
+        updateGeneratedSecret();
+    });
+
+    copyGenPassBtn?.addEventListener('click', async function() {
+        if (!currentGeneratedSecret) return;
+        try {
+            await navigator.clipboard.writeText(currentGeneratedSecret);
+            if (copyGenIcon) copyGenIcon.className = 'fas fa-check text-success mr-1';
+            if (copyGenText) copyGenText.textContent = 'Copié !';
+            setTimeout(() => {
+                if (copyGenIcon) copyGenIcon.className = 'fas fa-copy mr-1';
+                if (copyGenText) copyGenText.textContent = 'Copier';
+            }, 1500);
+        } catch (e) {
+            showAlert('Impossible de copier dans le presse-papier.');
+        }
+    });
+
+    applyGeneratedPassBtn?.addEventListener('click', function() {
+        if (!currentGeneratedSecret || !passwordInput) return;
+        passwordInput.value = currentGeneratedSecret;
+        passwordInput.dispatchEvent(new Event('input'));
+        $('#passGenModal').modal('hide');
+    });
+
+    $('#passGenModal')?.on('show.bs.modal', function() {
+        updateGeneratedSecret();
+    });
 </script>
 @endpush
