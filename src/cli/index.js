@@ -8,6 +8,7 @@ import { strengthCommand } from './commands/strength.js';
 import { policyCommand } from './commands/policy.js';
 import { benchmarkCommand } from './commands/benchmark.js';
 import { interactiveCommand } from './commands/interactive.js';
+import { auditCommand } from './commands/audit.js';
 
 export function createCli() {
   const program = new Command();
@@ -107,6 +108,16 @@ export function createCli() {
     .description('Launch interactive menu mode')
     .action(interactiveCommand);
 
+  // 10. Audit command
+  program
+    .command('audit [file]')
+    .description('Batch audit a file of hashes or passwords for vulnerabilities and compliance')
+    .option('--hashes', 'Force treating lines as hashes')
+    .option('--passwords', 'Force treating lines as passwords')
+    .option('--report <filepath>', 'Export report to file (.json or .csv)')
+    .option('--json', 'Output results in JSON format')
+    .action(auditCommand);
+
   return program;
 }
 
@@ -127,6 +138,7 @@ export async function runCli(argv = process.argv) {
       policy: 'policy',
       benchmark: 'benchmark',
       interactive: 'interactive',
+      audit: 'audit',
     };
     if (aliases[flag]) {
       normalizedArgv[2] = aliases[flag];

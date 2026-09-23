@@ -2144,5 +2144,20 @@
     $('#passGenModal')?.on('show.bs.modal', function() {
         updateGeneratedSecret();
     });
+
+    // Activation des onglets au clic sur les nav-items
+    $('#coffreTabs').on('click', '.nav-item', function(e) {
+        var $link = $(this).find('a.nav-link');
+        if (!$link.length) return;
+        if (typeof $link.tab === 'function') {
+            $link.tab('show');
+        } else {
+            $('#coffreTabs .nav-link').removeClass('active').attr('aria-selected', 'false');
+            $link.addClass('active').attr('aria-selected', 'true');
+            var target = $link.attr('href');
+            $('#coffreTabContent > .tab-pane').removeClass('show active');
+            $(target).addClass('show active');
+        }
+    });
 </script>
 @endpush

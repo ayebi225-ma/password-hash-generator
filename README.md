@@ -124,6 +124,21 @@ Mesure des performances du CPU local sur Argon2id, Bcrypt et Scrypt :
 coffrepass benchmark --rounds 3
 ```
 
+### 9. Audit de sécurité en masse (`audit`)
+Analyse et évalue un fichier contenant des centaines ou milliers de hashs ou mots de passe (détection des hashs vulnérables MD5, SHA-1, rounds Bcrypt trop bas, mots de passe compromis) :
+```bash
+# Audit automatique avec détection heuristique
+coffrepass audit dump_hashes.txt
+
+# Export du rapport au format JSON ou CSV
+coffrepass audit dump_hashes.txt --report rapport_securite.json
+coffrepass audit dump_passwords.txt --passwords --report audit.csv
+
+# Support des flux stdin (pipes)
+cat list_hashes.txt | coffrepass audit --hashes
+```
+> **Code retour :** `0` si tous les hashs/mots de passe sont sécurisés/conformes, `1` si des vulnérabilités critiques sont identifiées.
+
 ---
 
 ## 💻 Utilisation Programmatique (SDK Node.js)
@@ -138,7 +153,10 @@ import {
   inspectHash,
   analyzeStrength,
   validatePolicy,
-  runBenchmark
+  runBenchmark,
+  auditHashes,
+  auditPasswords,
+  auditFile
 } from 'coffrepass';
 
 // 1. Hachage Argon2id / Bcrypt
@@ -157,6 +175,13 @@ const phrase = generatePassphrase({ words: 5, separator: '-', capitalize: true }
 // 4. Force et entropie
 const analysis = analyzeStrength('MotDePasseTresRobuste#2026');
 console.log(analysis.entropyBits, analysis.crackTimes.offlineSlowKdf);
+
+// 5. Audit de masse (Hashes & Mots de passe)
+const auditReport = auditHashes([
+  '$argon2id$v=19$m=65536,t=3,p=1$...',
+  '5d41402abc4b2a76b9719d911017c592' // MD5 vulnérable
+]);
+console.log(auditReport.score, auditReport.grade, auditReport.summary.vulnerable);
 ```
 
 ---

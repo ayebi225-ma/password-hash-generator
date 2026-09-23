@@ -29,8 +29,9 @@ export async function interactiveCommand() {
         { name: '7. 🕵️ Detect unknown hash format', value: 'detect' },
         { name: '8. ⚡ Test password strength & cracking estimation', value: 'strength' },
         { name: '9. 📋 Validate password against security policy', value: 'policy' },
-        { name: '10. ⏱️ Run local cryptographic benchmark', value: 'benchmark' },
-        { name: '11. 🚪 Exit', value: 'exit' },
+        { name: '10. 📊 Audit batch file (hashes or passwords)', value: 'audit' },
+        { name: '11. ⏱️ Run local cryptographic benchmark', value: 'benchmark' },
+        { name: '12. 🚪 Exit', value: 'exit' },
       ],
     });
 
@@ -190,6 +191,28 @@ export async function interactiveCommand() {
           } else {
             printError('Violations:');
             res.violations.forEach((v) => console.log(`  ${pc.red('✖')} ${v}`));
+          }
+          break;
+        }
+
+        case 'audit': {
+          const filePath = await input({ message: 'Enter file path to audit (e.g. hashes.txt or passwords.csv):' });
+          if (!filePath.trim()) break;
+          const { auditFile } = await import('../../core/audit/audit.js');
+          const report = await auditFile(filePath.trim());
+          console.log();
+          printSuccess(`Audit complete for ${report.type.toUpperCase()}: Score ${report.score}/100 (Grade ${report.grade})`);
+          console.log(`  Total: ${report.total} entries (${report.uniqueCount} unique, ${report.duplicateCount} duplicates)`);
+          if (report.type === 'hashes') {
+            const rows = Object.entries(report.distribution).map(([a, d]) => [
+              pc.bold(a),
+              String(d.count),
+              `${d.percentage}%`,
+              d.secure ? pc.green('SECURE') : pc.red('VULNERABLE'),
+            ]);
+            console.log(createTable(['Algorithm', 'Count', 'Share', 'Rating'], rows));
+          } else {
+            console.log(`  Average Entropy: ${report.metrics.averageEntropy} bits | Compliance: ${report.metrics.compliancePercentage}%`);
           }
           break;
         }
