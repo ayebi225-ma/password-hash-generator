@@ -13,3 +13,5 @@ export { calculateEntropy, formatDuration, analyzeStrength } from './password/st
 export { validatePolicy } from './password/policy.js';
 export { generateSecret } from './secret/generate.js';
 export { runBenchmark } from './benchmark/benchmark.js';
+export { auditHashes, auditPasswords, auditFile, detectContentType } from './audit/audit.js';
+

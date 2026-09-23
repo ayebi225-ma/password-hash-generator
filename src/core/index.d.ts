@@ -114,3 +114,47 @@ export function validatePolicy(secretInput: string, policy?: PasswordPolicy): Po
 export function generateSecret(options?: SecretOptions): string;
 
 export function runBenchmark(options?: { rounds?: number }): Promise<Record<string, any>>;
+
+export interface HashAuditReport {
+  type: 'hashes';
+  total: number;
+  uniqueCount: number;
+  duplicateCount: number;
+  score: number;
+  grade: 'A' | 'B' | 'C' | 'D' | 'F';
+  summary: {
+    secure: number;
+    acceptable: number;
+    vulnerable: number;
+  };
+  distribution: Record<string, { count: number; percentage: number; secure: boolean }>;
+  vulnerabilities: Array<{ type: string; severity: string; message: string; sample: string }>;
+  recommendations: string[];
+  sampleItems: Array<Record<string, any>>;
+}
+
+export interface PasswordAuditReport {
+  type: 'passwords';
+  total: number;
+  uniqueCount: number;
+  duplicateCount: number;
+  score: number;
+  grade: 'A' | 'B' | 'C' | 'D' | 'F';
+  metrics: {
+    averageEntropy: number;
+    averageLength: number;
+    compliancePercentage: number;
+    compliantCount: number;
+    nonCompliantCount: number;
+  };
+  scoreDistribution: Record<string, number>;
+  topWeaknesses: Array<{ weakness: string; occurrences: number }>;
+  recommendations: string[];
+  sampleItems: Array<Record<string, any>>;
+}
+
+export function detectContentType(sampleLines: string[]): 'hashes' | 'passwords';
+export function auditHashes(lines: string[], options?: { maxItems?: number }): HashAuditReport;
+export function auditPasswords(lines: string[], options?: { policy?: PasswordPolicy; maxItems?: number }): PasswordAuditReport;
+export function auditFile(filePath: string, options?: { type?: 'hashes' | 'passwords'; policy?: PasswordPolicy; maxItems?: number }): Promise<HashAuditReport | PasswordAuditReport>;
+
